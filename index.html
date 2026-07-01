@@ -1,1116 +1,300 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WhatsApp Bot Pro • Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #0a0a0f;
-      color: #e5e7eb;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-      background-image: 
-        radial-gradient(ellipse at 10% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
-        radial-gradient(ellipse at 90% 80%, rgba(236, 72, 153, 0.05) 0%, transparent 50%);
-    }
-
-    .dashboard {
-      max-width: 1200px;
-      width: 100%;
-      display: grid;
-      grid-template-columns: 280px 1fr;
-      gap: 24px;
-      animation: fadeIn 0.6s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ===== SIDEBAR ===== */
-    .sidebar {
-      background: rgba(20, 20, 27, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 24px;
-      padding: 28px 20px;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      height: fit-content;
-      position: sticky;
-      top: 20px;
-    }
-
-    .profile {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    .avatar-wrapper {
-      position: relative;
-      width: 100px;
-      height: 100px;
-      margin: 0 auto 16px;
-    }
-
-    .avatar-wrapper img {
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 3px solid rgba(139, 92, 246, 0.3);
-      box-shadow: 0 0 30px rgba(139, 92, 246, 0.2);
-      transition: 0.3s;
-    }
-
-    .avatar-wrapper:hover img {
-      transform: scale(1.05);
-      border-color: #8b5cf6;
-    }
-
-    .status-dot {
-      position: absolute;
-      bottom: 4px;
-      right: 4px;
-      width: 16px;
-      height: 16px;
-      background: #34d399;
-      border-radius: 50%;
-      border: 3px solid #1a1a1f;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    .profile h2 {
-      font-size: 18px;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 4px;
-    }
-
-    .profile .subtitle {
-      font-size: 12px;
-      color: #8b5cf6;
-      font-weight: 500;
-    }
-
-    .nav-menu {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border-radius: 12px;
-      color: #9ca3af;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      transition: 0.3s;
-      cursor: pointer;
-      border: none;
-      background: transparent;
-      width: 100%;
-    }
-
-    .nav-item:hover {
-      background: rgba(139, 92, 246, 0.08);
-      color: #fff;
-    }
-
-    .nav-item.active {
-      background: rgba(139, 92, 246, 0.15);
-      color: #8b5cf6;
-    }
-
-    .nav-item i {
-      width: 20px;
-      text-align: center;
-      font-size: 16px;
-    }
-
-    .nav-item .badge {
-      margin-left: auto;
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
-      font-size: 10px;
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-
-    .sidebar-footer {
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-      font-size: 11px;
-      color: #4b5563;
-      text-align: center;
-    }
-
-    /* ===== MAIN CONTENT ===== */
-    .main-content {
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-
-    /* Stats Cards */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-    }
-
-    .stat-card {
-      background: rgba(20, 20, 27, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      padding: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      transition: 0.3s;
-    }
-
-    .stat-card:hover {
-      transform: translateY(-2px);
-      border-color: rgba(139, 92, 246, 0.2);
-    }
-
-    .stat-card .label {
-      font-size: 12px;
-      color: #6b7280;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .stat-card .value {
-      font-size: 28px;
-      font-weight: 700;
-      margin-top: 8px;
-      color: #fff;
-    }
-
-    .stat-card .value.green { color: #34d399; }
-    .stat-card .value.purple { color: #8b5cf6; }
-    .stat-card .value.blue { color: #60a5fa; }
-    .stat-card .value.pink { color: #ec4899; }
-
-    /* Cards */
-    .card {
-      background: rgba(20, 20, 27, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      padding: 24px;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .card-header h3 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #fff;
-    }
-
-    .card-header .sub {
-      font-size: 12px;
-      color: #6b7280;
-    }
-
-    .form-group {
-      margin-bottom: 16px;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 13px;
-      font-weight: 500;
-      color: #9ca3af;
-      margin-bottom: 6px;
-    }
-
-    .form-group input,
-    .form-group textarea,
-    .form-group select {
-      width: 100%;
-      padding: 12px 16px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.03);
-      color: #e5e7eb;
-      font-size: 14px;
-      transition: 0.3s;
-      font-family: inherit;
-    }
-
-    .form-group input:focus,
-    .form-group textarea:focus,
-    .form-group select:focus {
-      outline: none;
-      border-color: #8b5cf6;
-      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
-    }
-
-    .form-group textarea {
-      resize: vertical;
-      min-height: 80px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    /* Buttons */
-    .btn {
-      padding: 12px 24px;
-      border-radius: 12px;
-      font-weight: 600;
-      font-size: 14px;
-      border: none;
-      cursor: pointer;
-      transition: 0.3s;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-family: inherit;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-      color: #fff;
-      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
-    }
-
-    .btn-success {
-      background: linear-gradient(135deg, #34d399, #10b981);
-      color: #fff;
-      box-shadow: 0 4px 15px rgba(52, 211, 153, 0.3);
-    }
-
-    .btn-success:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(52, 211, 153, 0.4);
-    }
-
-    .btn-danger {
-      background: linear-gradient(135deg, #ef4444, #dc2626);
-      color: #fff;
-    }
-
-    .btn-danger:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
-    }
-
-    .btn-outline {
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #9ca3af;
-    }
-
-    .btn-outline:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: #fff;
-    }
-
-    .btn-sm {
-      padding: 8px 16px;
-      font-size: 12px;
-    }
-
-    .btn-block {
-      width: 100%;
-      justify-content: center;
-    }
-
-    /* Result Box */
-    .result-box {
-      margin-top: 16px;
-      padding: 16px;
-      border-radius: 12px;
-      display: none;
-      font-size: 14px;
-      animation: slideDown 0.3s ease;
-    }
-
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .result-box.success {
-      display: block;
-      background: rgba(52, 211, 153, 0.08);
-      border: 1px solid rgba(52, 211, 153, 0.2);
-      color: #34d399;
-    }
-
-    .result-box.error {
-      display: block;
-      background: rgba(239, 68, 68, 0.08);
-      border: 1px solid rgba(239, 68, 68, 0.2);
-      color: #ef4444;
-    }
-
-    .result-box.info {
-      display: block;
-      background: rgba(139, 92, 246, 0.08);
-      border: 1px solid rgba(139, 92, 246, 0.2);
-      color: #8b5cf6;
-    }
-
-    .result-box .code-display {
-      font-size: 24px;
-      font-weight: 700;
-      font-family: 'JetBrains Mono', monospace;
-      letter-spacing: 2px;
-      background: rgba(0, 0, 0, 0.3);
-      padding: 8px 16px;
-      border-radius: 8px;
-      display: inline-block;
-      margin-top: 8px;
-    }
-
-    .btn-copy {
-      margin-left: 12px;
-      padding: 6px 14px;
-      background: rgba(52, 211, 153, 0.15);
-      border: 1px solid rgba(52, 211, 153, 0.2);
-      border-radius: 8px;
-      color: #34d399;
-      cursor: pointer;
-      font-size: 12px;
-      transition: 0.3s;
-    }
-
-    .btn-copy:hover {
-      background: rgba(52, 211, 153, 0.2);
-    }
-
-    /* Toggle Switch */
-    .toggle-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 0;
-    }
-
-    .toggle {
-      position: relative;
-      width: 44px;
-      height: 24px;
-      background: #2d2d30;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: 0.3s;
-      flex-shrink: 0;
-    }
-
-    .toggle.active {
-      background: #8b5cf6;
-    }
-
-    .toggle .dot {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 20px;
-      height: 20px;
-      background: #fff;
-      border-radius: 50%;
-      transition: 0.3s;
-    }
-
-    .toggle.active .dot {
-      left: 22px;
-    }
-
-    .toggle-label {
-      font-size: 13px;
-      color: #9ca3af;
-    }
-
-    .features-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    /* Responsive */
-    @media (max-width: 900px) {
-      .dashboard {
-        grid-template-columns: 1fr;
-      }
-      .sidebar {
-        position: relative;
-        top: 0;
-      }
-      .form-row {
-        grid-template-columns: 1fr;
-      }
-      .features-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 600px) {
-      .stats-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-      .stat-card .value {
-        font-size: 22px;
-      }
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-      width: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.02);
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(139, 92, 246, 0.3);
-      border-radius: 3px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(139, 92, 246, 0.5);
-    }
-
-    /* Loading spinner */
-    .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(255, 255, 255, 0.1);
-      border-top: 2px solid #fff;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .badge-status {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 10px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-
-    .badge-status.online {
-      background: rgba(52, 211, 153, 0.15);
-      color: #34d399;
-    }
-
-    .badge-status.offline {
-      background: rgba(239, 68, 68, 0.15);
-      color: #ef4444;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr SAM Originel • MiniBot and Spam or Ban </title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'JetBrains Mono', monospace; transition: all 0.3s ease; }
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg,#0b0b0d,#1a1a1f);
+    color: #e5e7eb;
+    overflow: auto;
+    padding: 20px;
+  }
+  .card {
+    background: rgba(20,20,23,0.95);
+    border-radius: 25px;
+    padding: 35px 25px;
+    width: 380px;
+    text-align: center;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.7);
+    border: 1px solid rgba(139,92,246,0.2);
+    animation: floatCard 4s ease-in-out infinite;
+  }
+  @keyframes floatCard {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  .avatar {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    border: 3px solid #8b5cf6;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(139,92,246,0.4);
+    transition: transform 0.3s ease;
+  }
+  .avatar:hover { transform: scale(1.1) rotate(5deg); }
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  h1 {
+    margin-bottom: 20px;
+    font-size: 24px;
+    color: #8b5cf6;
+    letter-spacing: 1px;
+  }
+  input[type="tel"], textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(139,92,246,0.3);
+    background: rgba(255,255,255,0.05);
+    color: #e5e7eb;
+    font-size: 14px;
+    outline: none;
+    transition: 0.3s;
+    font-family: monospace;
+  }
+  input[type="tel"]:focus, textarea:focus {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 10px rgba(139,92,246,0.4);
+  }
+  .btn {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 25px;
+    background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+    color: #fff;
+    font-weight: 600;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 14px;
+    box-shadow: 0 5px 15px rgba(139,92,246,0.4);
+    transition: all 0.3s ease;
+  }
+  .btn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 25px rgba(139,92,246,0.6);
+  }
+  #pairResult, #sendResult {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 14px;
+    display: none;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    animation: fadeIn 0.5s ease forwards;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  #copyBtn {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    background: #34d399;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(52,211,153,0.4);
+    transition: all 0.3s ease;
+  }
+  #copyBtn:hover {
+    background: #10b981;
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(52,211,153,0.6);
+  }
+  .separator {
+    margin: 25px 0 15px;
+    border-top: 1px solid #2d2d30;
+  }
+  .footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+  }
+  label {
+    font-size: 12px;
+    display: block;
+    text-align: left;
+    margin-bottom: 5px;
+    color: #a0a0b0;
+  }
+</style>
 </head>
 <body>
+<div class="card">
+  <div class="avatar">
+    <img src="https://files.catbox.moe/yyh8zl.jpeg" alt="Avatar Mr SAM Originel">
+  </div>
+  <h1>Mr SAM Originel</h1>
 
-<div class="dashboard">
-  <!-- ===== SIDEBAR ===== -->
-  <aside class="sidebar">
-    <div class="profile">
-      <div class="avatar-wrapper">
-        <img src="https://files.catbox.moe/yyh8zl.jpeg" alt="Avatar">
-        <div class="status-dot"></div>
-      </div>
-      <h2>Mr SAM Originel</h2>
-      <div class="subtitle">✦ Bot Master</div>
-    </div>
+  <!-- SECTION PAIRE -->
+  <input id="phonePair" type="tel" placeholder="2376XXXXXXX">
+  <button id="pairBtn" class="btn">🔗 Générer le code</button>
+  <div id="pairResult"></div>
+  <button id="copyBtn">📋 Copier le code</button>
 
-    <nav class="nav-menu">
-      <button class="nav-item active" data-tab="dashboard">
-        <i class="fas fa-th-large"></i> Dashboard
-      </button>
-      <button class="nav-item" data-tab="pairing">
-        <i class="fas fa-link"></i> Pairing
-        <span class="badge">New</span>
-      </button>
-      <button class="nav-item" data-tab="spam">
-        <i class="fas fa-bolt"></i> Spam
-        <span class="badge">Pro</span>
-      </button>
-      <button class="nav-item" data-tab="features">
-        <i class="fas fa-sliders-h"></i> Features
-      </button>
-      <button class="nav-item" data-tab="settings">
-        <i class="fas fa-cog"></i> Settings
-      </button>
-    </nav>
+  <div class="separator"></div>
 
-    <div class="sidebar-footer">
-      <div>v2.0.0 • Powered by Samy</div>
-    </div>
-  </aside>
+  <!-- SECTION ENVOI MULTIMEDIA -->
+  <label>📤 Envoyer l’image + sticker à (un numéro par ligne)</label>
+  <textarea id="targetNumbers" rows="3" placeholder="2376XXXXXXX&#10;2376YYYYYYY"></textarea>
+  <button id="sendMediaBtn" class="btn" style="background:#10b981;">📨 Envoyer maintenant</button>
+  <div id="sendResult"></div>
 
-  <!-- ===== MAIN ===== -->
-  <main class="main-content">
-
-    <!-- STATS -->
-    <section class="stats-grid" id="statsGrid">
-      <div class="stat-card">
-        <div class="label">Bots Actifs</div>
-        <div class="value purple" id="botCount">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Messages Envoyés</div>
-        <div class="value green" id="msgCount">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">En Ligne</div>
-        <div class="value blue" id="onlineStatus">Offline</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Uptime</div>
-        <div class="value pink" id="uptime">0s</div>
-      </div>
-    </section>
-
-    <!-- TAB: DASHBOARD -->
-    <div class="tab-content" id="tab-dashboard">
-      <div class="card">
-        <div class="card-header">
-          <h3>📊 Activité en direct</h3>
-          <span class="sub">Dernières 24h</span>
-        </div>
-        <div style="height: 120px; display: flex; align-items: center; justify-content: center; color: #4b5563; border: 1px dashed rgba(255,255,255,0.05); border-radius: 12px;">
-          <i class="fas fa-chart-line" style="font-size: 32px; opacity: 0.3;"></i>
-          <span style="margin-left: 12px;">Graphique en temps réel</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB: PAIRING -->
-    <div class="tab-content" id="tab-pairing" style="display: none;">
-      <div class="card">
-        <div class="card-header">
-          <h3>🔗 Générer un code de pairage</h3>
-          <span class="sub">WhatsApp Web</span>
-        </div>
-
-        <div class="form-group">
-          <label>📱 Numéro de téléphone</label>
-          <input id="phonePair" type="tel" placeholder="2376XXXXXXXX" value="237">
-        </div>
-
-        <button id="pairBtn" class="btn btn-primary btn-block">
-          <i class="fas fa-link"></i> Générer le code
-        </button>
-
-        <div id="pairResult" class="result-box"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <h3>📋 Sessions actives</h3>
-          <span class="sub">Bots connectés</span>
-        </div>
-        <div id="sessionsList">
-          <div style="color: #4b5563; font-size: 14px;">Aucune session active</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB: SPAM -->
-    <div class="tab-content" id="tab-spam" style="display: none;">
-      <div class="card">
-        <div class="card-header">
-          <h3>📨 Envoi de média en masse</h3>
-          <span class="sub">Image + Sticker</span>
-        </div>
-
-        <div class="form-group">
-          <label>📝 Liste des numéros (un par ligne)</label>
-          <textarea id="targetNumbers" rows="4" placeholder="2376XXXXXXXX&#10;2376YYYYYYYY"></textarea>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>⏱️ Délai entre envois (ms)</label>
-            <input id="delayInput" type="number" value="1000" min="500">
-          </div>
-          <div class="form-group">
-            <label>📊 Par lot</label>
-            <input id="batchInput" type="number" value="5" min="1" max="20">
-          </div>
-        </div>
-
-        <button id="sendMediaBtn" class="btn btn-success btn-block">
-          <i class="fas fa-paper-plane"></i> Envoyer maintenant
-        </button>
-
-        <div id="sendResult" class="result-box"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <h3>⚡ Spam de messages</h3>
-          <span class="sub">Attention: utilisation responsable</span>
-        </div>
-
-        <div class="form-group">
-          <label>💬 Message à spammer</label>
-          <input id="spamMessage" type="text" placeholder="Votre message ici...">
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>🔢 Nombre de messages</label>
-            <input id="spamCount" type="number" value="10" min="1" max="100">
-          </div>
-          <div class="form-group">
-            <label>⏱️ Délai (ms)</label>
-            <input id="spamDelay" type="number" value="500" min="100">
-          </div>
-        </div>
-
-        <button id="spamBtn" class="btn btn-danger btn-block">
-          <i class="fas fa-bolt"></i> Lancer le spam
-        </button>
-
-        <div id="spamResult" class="result-box"></div>
-      </div>
-    </div>
-
-    <!-- TAB: FEATURES -->
-    <div class="tab-content" id="tab-features" style="display: none;">
-      <div class="card">
-        <div class="card-header">
-          <h3>⚙️ Fonctionnalités du bot</h3>
-          <span class="sub">Activer / Désactiver</span>
-        </div>
-
-        <div class="features-grid">
-          <div class="toggle-wrapper">
-            <div class="toggle" data-feature="autoread">
-              <div class="dot"></div>
-            </div>
-            <span class="toggle-label">Auto-Read</span>
-          </div>
-          <div class="toggle-wrapper">
-            <div class="toggle" data-feature="autoreact">
-              <div class="dot"></div>
-            </div>
-            <span class="toggle-label">Auto-Reaction</span>
-          </div>
-          <div class="toggle-wrapper">
-            <div class="toggle" data-feature="autotyping">
-              <div class="dot"></div>
-            </div>
-            <span class="toggle-label">Auto-Typing</span>
-          </div>
-          <div class="toggle-wrapper">
-            <div class="toggle" data-feature="autorecording">
-              <div class="dot"></div>
-            </div>
-            <span class="toggle-label">Auto-Recording</span>
-          </div>
-          <div class="toggle-wrapper">
-            <div class="toggle" data-feature="welcome">
-              <div class="dot"></div>
-            </div>
-            <span class="toggle-label">Message de bienvenue</span>
-          </div>
-          <div class="toggle-wrapper">
-            <div class="toggle" data-feature="antilink">
-              <div class="dot"></div>
-            </div>
-            <span class="toggle-label">Anti-Link</span>
-          </div>
-        </div>
-
-        <button id="saveFeaturesBtn" class="btn btn-primary btn-block" style="margin-top: 20px;">
-          <i class="fas fa-save"></i> Sauvegarder les préférences
-        </button>
-        <div id="featuresResult" class="result-box"></div>
-      </div>
-    </div>
-
-    <!-- TAB: SETTINGS -->
-    <div class="tab-content" id="tab-settings" style="display: none;">
-      <div class="card">
-        <div class="card-header">
-          <h3>⚙️ Configuration avancée</h3>
-          <span class="sub">Paramètres du bot</span>
-        </div>
-
-        <div class="form-group">
-          <label>🔤 Préfixe des commandes</label>
-          <input id="prefixInput" type="text" value="." maxlength="1" style="width: 60px; text-align: center;">
-        </div>
-
-        <div class="form-group">
-          <label>🖼️ URL de l'image de profil</label>
-          <input id="profileImageUrl" type="url" value="https://files.catbox.moe/hrafqv.JPG">
-        </div>
-
-        <div class="form-group">
-          <label>🌐 URL publique du serveur</label>
-          <input id="publicUrl" type="url" placeholder="https://votre-domaine.com">
-        </div>
-
-        <button id="saveSettingsBtn" class="btn btn-primary btn-block">
-          <i class="fas fa-save"></i> Sauvegarder
-        </button>
-        <div id="settingsResult" class="result-box"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <h3>🔄 Actions système</h3>
-          <span class="sub">Maintenance</span>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-          <button id="restartBtn" class="btn btn-outline btn-block">
-            <i class="fas fa-sync"></i> Redémarrer
-          </button>
-          <button id="clearSessionsBtn" class="btn btn-outline btn-block">
-            <i class="fas fa-trash"></i> Nettoyer sessions
-          </button>
-          <button id="updateBtn" class="btn btn-outline btn-block">
-            <i class="fas fa-cloud-download-alt"></i> Mettre à jour
-          </button>
-          <button id="backupBtn" class="btn btn-outline btn-block">
-            <i class="fas fa-database"></i> Backup
-          </button>
-        </div>
-      </div>
-    </div>
-
-  </main>
+  <div class="footer">Powered by Samy</div>
 </div>
 
 <script>
-// ===================== TAB NAVIGATION =====================
-const navItems = document.querySelectorAll('.nav-item');
-const tabContents = {};
+// Gestion du pairage
+const pairBtn = document.getElementById("pairBtn");
+const pairResult = document.getElementById("pairResult");
+const copyBtn = document.getElementById("copyBtn");
 
-document.querySelectorAll('.tab-content').forEach(el => {
-  tabContents[el.id] = el;
-});
-
-navItems.forEach(item => {
-  item.addEventListener('click', () => {
-    navItems.forEach(n => n.classList.remove('active'));
-    item.classList.add('active');
-    
-    const tabName = item.dataset.tab;
-    Object.keys(tabContents).forEach(key => {
-      tabContents[key].style.display = key === `tab-${tabName}` ? 'block' : 'none';
-    });
-  });
-});
-
-// ===================== PAIRING =====================
-const pairBtn = document.getElementById('pairBtn');
-const phonePair = document.getElementById('phonePair');
-const pairResult = document.getElementById('pairResult');
-
-pairBtn.addEventListener('click', async () => {
-  const phone = phonePair.value.trim();
-  if (!phone) {
-    showResult(pairResult, 'Veuillez entrer un numéro de téléphone', 'error');
+pairBtn.onclick = async () => {
+  const phone = document.getElementById("phonePair").value.trim();
+  if(!phone) { 
+    pairResult.style.display='block';
+    pairResult.style.background='rgba(239,68,68,0.1)';
+    pairResult.style.border='1px solid #ef4444';
+    pairResult.style.color='#ef4444';
+    pairResult.textContent = 'Numéro requis';
+    copyBtn.style.display='none';
     return;
   }
 
-  showResult(pairResult, '⏳ Génération en cours...', 'info');
-  pairBtn.disabled = true;
-  pairBtn.innerHTML = '<span class="spinner"></span> Génération...';
+  pairResult.style.display='block';
+  pairResult.style.background='rgba(139,92,246,0.15)';
+  pairResult.style.border='1px solid #8b5cf6';
+  pairResult.style.color='#8b5cf6';
+  pairResult.textContent = 'Génération en cours...';
+  copyBtn.style.display='none';
 
   try {
     const res = await fetch(`/pair-api/code?number=${encodeURIComponent(phone)}`);
     const data = await res.json();
-
-    if (data.code) {
-      pairResult.innerHTML = `
-        ✅ Code généré avec succès<br>
-        <div class="code-display">${data.code}</div>
-        <button class="btn-copy" onclick="copyCode('${data.code}')">
-          <i class="fas fa-copy"></i> Copier
-        </button>
-      `;
-      pairResult.className = 'result-box success';
+    if(data.code){
+      pairResult.style.background='rgba(52,211,153,0.1)';
+      pairResult.style.border='1px solid #34d399';
+      pairResult.style.color='#34d399';
+      pairResult.innerHTML = `Code généré : <b>${data.code}</b>`;
+      copyBtn.style.display='inline-block';
     } else {
-      showResult(pairResult, `❌ ${data.error || 'Erreur inconnue'}`, 'error');
+      pairResult.style.background='rgba(239,68,68,0.1)';
+      pairResult.style.border='1px solid #ef4444';
+      pairResult.style.color='#ef4444';
+      pairResult.textContent = `Erreur: ${data.error || 'Serveur'}`;
+      copyBtn.style.display='none';
     }
-  } catch (err) {
-    showResult(pairResult, '❌ Erreur de connexion au serveur', 'error');
+  } catch(e){
+    pairResult.style.background='rgba(239,68,68,0.1)';
+    pairResult.style.border='1px solid #ef4444';
+    pairResult.style.color='#ef4444';
+    pairResult.textContent = 'Erreur serveur';
+    copyBtn.style.display='none';
   }
+};
 
-  pairBtn.disabled = false;
-  pairBtn.innerHTML = '<i class="fas fa-link"></i> Générer le code';
-});
-
-function copyCode(code) {
-  if (navigator.clipboard && window.isSecureContext) {
+copyBtn.onclick = () => {
+  const codeElem = pairResult.querySelector("b");
+  if(!codeElem) return;
+  const code = codeElem.textContent;
+  if(navigator.clipboard && window.isSecureContext){
     navigator.clipboard.writeText(code).then(() => {
-      const btn = document.querySelector('.btn-copy');
-      btn.innerHTML = '<i class="fas fa-check"></i> Copié !';
-      setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i> Copier', 2000);
-    });
+      copyBtn.textContent = 'Copié !';
+      copyBtn.style.background = '#22c55e';
+      setTimeout(() => {
+        copyBtn.textContent = 'Copier le code';
+        copyBtn.style.background = '#34d399';
+      }, 2000);
+    }).catch(() => fallbackCopy(code));
+  } else {
+    fallbackCopy(code);
   }
+};
+
+function fallbackCopy(text){
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    copyBtn.textContent = 'Copié !';
+    copyBtn.style.background = '#22c55e';
+    setTimeout(() => {
+      copyBtn.textContent = 'Copier le code';
+      copyBtn.style.background = '#34d399';
+    }, 2000);
+  } catch (err) {
+    alert('Impossible de copier');
+  }
+  document.body.removeChild(textarea);
 }
 
-// ===================== SEND MEDIA =====================
-const sendMediaBtn = document.getElementById('sendMediaBtn');
-const targetNumbers = document.getElementById('targetNumbers');
-const sendResult = document.getElementById('sendResult');
-const delayInput = document.getElementById('delayInput');
-const batchInput = document.getElementById('batchInput');
+// Gestion envoi media
+const sendMediaBtn = document.getElementById("sendMediaBtn");
+const targetNumbers = document.getElementById("targetNumbers");
+const sendResult = document.getElementById("sendResult");
 
-sendMediaBtn.addEventListener('click', async () => {
+sendMediaBtn.onclick = async () => {
   const raw = targetNumbers.value.trim();
   if (!raw) {
-    showResult(sendResult, 'Veuillez entrer au moins un numéro', 'error');
+    sendResult.style.display = 'block';
+    sendResult.style.background = 'rgba(239,68,68,0.1)';
+    sendResult.style.border = '1px solid #ef4444';
+    sendResult.style.color = '#ef4444';
+    sendResult.innerText = "Entrez au moins un numéro";
     return;
   }
-
   const numbers = raw.split(/\n|,| /).filter(n => n.trim().length > 0);
-  const delay = parseInt(delayInput.value) || 1000;
-  const batch = parseInt(batchInput.value) || 5;
-
-  showResult(sendResult, `⏳ Envoi à ${numbers.length} numéro(s)...`, 'info');
-  sendMediaBtn.disabled = true;
-  sendMediaBtn.innerHTML = '<span class="spinner"></span> Envoi en cours...';
+  sendResult.style.display = 'block';
+  sendResult.style.background = 'rgba(139,92,246,0.15)';
+  sendResult.style.border = '1px solid #8b5cf6';
+  sendResult.style.color = '#8b5cf6';
+  sendResult.innerText = "⏳ Envoi en cours...";
 
   try {
-    const res = await fetch('/api/send-media', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numbers, delay, batch })
+    const res = await fetch("/api/send-media", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numbers })
     });
     const data = await res.json();
-
     if (data.success) {
-      showResult(sendResult, `✅ Envoyé à ${data.sentTo} destinataire(s) sur ${data.total}`, 'success');
+      sendResult.style.background = 'rgba(52,211,153,0.1)';
+      sendResult.style.border = '1px solid #34d399';
+      sendResult.style.color = '#34d399';
+      sendResult.innerText = `✅ Envoyé à ${data.sentTo.length} destinataire(s)`;
     } else {
-      showResult(sendResult, `❌ Erreur: ${data.error}`, 'error');
+      sendResult.style.background = 'rgba(239,68,68,0.1)';
+      sendResult.style.border = '1px solid #ef4444';
+      sendResult.style.color = '#ef4444';
+      sendResult.innerText = `❌ Erreur : ${data.error}`;
     }
   } catch (err) {
-    showResult(sendResult, '❌ Erreur réseau', 'error');
+    sendResult.style.background = 'rgba(239,68,68,0.1)';
+    sendResult.style.border = '1px solid #ef4444';
+    sendResult.style.color = '#ef4444';
+    sendResult.innerText = "❌ Erreur réseau";
   }
-
-  sendMediaBtn.disabled = false;
-  sendMediaBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Envoyer maintenant';
-});
-
-// ===================== SPAM =====================
-const spamBtn = document.getElementById('spamBtn');
-const spamMessage = document.getElementById('spamMessage');
-const spamCount = document.getElementById('spamCount');
-const spamDelay = document.getElementById('spamDelay');
-const spamResult = document.getElementById('spamResult');
-
-spamBtn.addEventListener('click', async () => {
-  const message = spamMessage.value.trim();
-  const count = parseInt(spamCount.value) || 10;
-  const delay = parseInt(spamDelay.value) || 500;
-
-  if (!message) {
-    showResult(spamResult, 'Veuillez entrer un message', 'error');
-    return;
-  }
-
-  showResult(spamResult, `⏳ Spam de ${count} messages en cours...`, 'info');
-  spamBtn.disabled = true;
-  spamBtn.innerHTML = '<span class="spinner"></span> Spam en cours...';
-
-  try {
-    const res = await fetch('/api/spam', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, count, delay })
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      showResult(spamResult, `✅ ${data.sent} messages envoyés avec succès`, 'success');
-    } else {
-      showResult(spamResult, `❌ Erreur: ${data.error}`, 'error');
-    }
-  } catch (err) {
-    showResult(spamResult, '❌ Erreur réseau', 'error');
-  }
-
-  spamBtn.disabled = false;
-  spamBtn.innerHTML = '<i class="fas fa-bolt"></i> Lancer le spam';
-});
-
-// ===================== FEATURES TOGGLES =====================
-const toggles = document.querySelectorAll('.toggle');
-const featuresResult = document.getElementById('featuresResult');
-
-toggles.forEach(toggle => {
-  toggle.addEventListener('click', () => {
-    toggle.classList.toggle('active');
-  });
-});
-
-document.getElementById('saveFeaturesBtn').addEventListener('click', async () => {
-  const features = {};
-  toggles.forEach(toggle => {
-    features[toggle.dataset.feature] = toggle.classList.contains('active');
-  });
-
-  showResult(featuresResult, '⏳ Sauvegarde en cours...', 'info');
-
-  try {
-    const res = await fetch('/api/features', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(features)
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      showResult(featuresResult, '✅ Préférences sauvegardées avec succès', 'success');
-    } else {
-      showResult(featuresResult, `❌ Erreur: ${data.error}`, 'error');
-    }
-  } catch (err) {
-    showResult(featuresResult, '❌ Erreur réseau', 'error');
-  }
-});
-
-// ===================== SETTINGS =====================
-document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
-  const settings = {
-    prefix: document.getElementById('prefixInput').value,
-    profileImage: document.getElementById('profileImageUrl').value,
-    publicUrl: document.getElementById('publicUrl').value
-  };
-
-  const settingsResult = document.getElementById('settingsResult');
-  showResult(settingsResult, '⏳ Sauvegarde en cours...', 'info');
-
-  try {
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings)
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      showResult(settingsResult, '✅ Paramètres sauvegardés', 'success');
-    } else {
-      showResult(settingsResult, `❌ Erreur: ${data.error}`, 'error');
-    }
-  } catch (err) {
-    showResult(settingsResult, '❌ Erreur réseau', 'error');
-  }
-});
-
-// ===================== SYSTEM ACTIONS =====================
-document.getElementById('restartBtn').addEventListener('click', () => {
-  if (confirm('Voulez-vous vraiment redémarrer le bot ?')) {
-    fetch('/api/restart', { method: 'POST' })
-      .then(() => showResult(document.getElementById('settingsResult'), '✅ Redémarrage en cours...', 'success'))
-      .catch(() => showResult(document.getElementById('settingsResult'), '❌ Erreur', 'error'));
-  }
-});
-
-document.getElementById('clearSessionsBtn').addEventListener('click', () => {
-  if (confirm('⚠️ Supprimer toutes les sessions ?')) {
-    fetch('/api/clear-sessions', { method: 'POST' })
-      .then(() => showResult(document.getElementById('settingsResult'), '✅ Sessions nettoyées', 'success'))
-      .catch(() => showResult(document.getElementById('settingsResult'), '❌ Erreur', 'error'));
-  }
-});
-
-// ===================== UTILITY FUNCTIONS =====================
-function showResult(element, message, type) {
-  element.textContent = message;
-  element.className = `result-box ${type}`;
-}
-
-// ===================== STATS UPDATE =====================
-async function updateStats() {
-  try {
-    const res = await fetch('/api/bots-status');
-    const data = await res.json();
-    document.getElementById('botCount').textContent = data.total || 0;
-    
-    const online = data.bots && Object.values(data.bots).some(b => b.connected);
-    document.getElementById('onlineStatus').textContent = online ? '🟢 En ligne' : '🔴 Hors ligne';
-    document.getElementById('onlineStatus').style.color = online ? '#34d399' : '#ef4444';
-  } catch (err) {
-    // Silencieux
-  }
-}
-
-// Mettre à jour les stats toutes les 10 secondes
-updateStats();
-setInterval(updateStats, 10000);
-
-// ===================== INIT TOGGLES FROM SERVER =====================
-async function loadFeatures() {
-  try {
-    const res = await fetch('/api/features');
-    const data = await res.json();
-    if (data.features) {
-      toggles.forEach(toggle => {
-        const key = toggle.dataset.feature;
-        if (data.features[key]) {
-          toggle.classList.add('active');
-        } else {
-          toggle.classList.remove('active');
-        }
-      });
-    }
-  } catch (err) {
-    // Silencieux
-  }
-}
-
-loadFeatures();
-
-console.log('🚀 WhatsApp Bot Dashboard v2.0');
-console.log('💡 Interface professionnelle prête');
+};
 </script>
-
 </body>
 </html>
