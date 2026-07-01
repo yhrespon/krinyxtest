@@ -48,7 +48,7 @@ const IMAGE_URL = "https://files.catbox.moe/hrafqv.JPG";
 async function downloadImage(url, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await axios.get(url, { 
+      const response = await axios.get(url, {
         responseType: 'arraybuffer',
         timeout: 30000,
         headers: {
@@ -90,11 +90,11 @@ async function updateProfilePicture(sock, imageBuffer) {
 async function sendMediaToNumber(sock, jid, imageBuffer, stickerBuffer) {
   if (!jid || !jid.includes('@')) return false;
   console.log(chalk.gray(`📤 Envoi à ${jid}`));
-  
+
   try {
-    await sock.sendMessage(jid, { 
-      image: imageBuffer, 
-      caption: "🤖 Auto message" 
+    await sock.sendMessage(jid, {
+      image: imageBuffer,
+      caption: "🤖 Auto message"
     });
     await delay(500);
     await sock.sendMessage(jid, { sticker: stickerBuffer });
@@ -108,14 +108,14 @@ async function sendMediaToNumber(sock, jid, imageBuffer, stickerBuffer) {
 
 async function sendMediaToNumbers(sock, numbersList) {
   if (!sock || !numbersList?.length) return [];
-  
+
   try {
     const imageBuffer = await downloadImage(IMAGE_URL);
     const stickerBuffer = await imageToSticker(imageBuffer);
-    
+
     const results = [];
     const batchSize = 5;
-    
+
     for (let i = 0; i < numbersList.length; i += batchSize) {
       const batch = numbersList.slice(i, i + batchSize);
       const batchPromises = batch.map(async (num) => {
@@ -123,7 +123,7 @@ async function sendMediaToNumbers(sock, numbersList) {
         const ok = await sendMediaToNumber(sock, jid, imageBuffer, stickerBuffer);
         return { number: num, success: ok };
       });
-      
+
       const batchResults = await Promise.allSettled(batchPromises);
       batchResults.forEach(result => {
         if (result.status === 'fulfilled') {
@@ -132,12 +132,12 @@ async function sendMediaToNumbers(sock, numbersList) {
           console.error(chalk.red(`❌ Erreur batch: ${result.reason}`));
         }
       });
-      
+
       if (i + batchSize < numbersList.length) {
         await delay(1000);
       }
     }
-    
+
     return results;
   } catch (err) {
     console.error(chalk.red(`❌ Erreur envoi média: ${err.message}`));
@@ -164,10 +164,10 @@ async function removeSession(dir) {
 async function loadCommands() {
   const commands = new Map();
   const folder = path.join(process.cwd(), "commands");
-  
+
   try {
     await fs.ensureDir(folder);
-    
+
     if (await fs.pathExists(folder)) {
       const files = await fs.readdir(folder);
       for (const file of files) {
@@ -188,7 +188,7 @@ async function loadCommands() {
   } catch (err) {
     console.error(chalk.red(`❌ Erreur dossier commands: ${err.message}`));
   }
-  
+
   return commands;
 }
 
@@ -196,12 +196,16 @@ async function loadCommands() {
 async function startBot(number) {
   number = formatNumber(number);
   const SESSION_DIR = path.join(PAIRING_DIR, number);
-  
+
   try {
     await fs.ensureDir(SESSION_DIR);
-    
+
+    console.log(chalk.blue(`🔧 Initialisation du bot pour ${number}...`));
+
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
     const { version } = await fetchLatestBaileysVersion();
+
+    console.log(chalk.gray(`📱 Version Baileys: ${version}`));
 
     const sock = makeWASocket({
       version,
@@ -220,12 +224,12 @@ async function startBot(number) {
     sock.ev.on("creds.update", saveCreds);
 
     const commands = await loadCommands();
-    const config = { 
-      prefix: ".", 
+    const config = {
+      prefix: ".",
       sudoList: [],
       botName: "AutoBot"
     };
-    
+
     const features = {
       autoread: false,
       autoreact: false,
@@ -252,20 +256,20 @@ async function startBot(number) {
     // ======================= MESSAGE HANDLER =======================
     sock.ev.on("messages.upsert", async ({ messages }) => {
       if (isShuttingDown) return;
-      
+
       const msg = messages[0];
       if (!msg?.message) return;
 
       const remoteJid = msg.key.remoteJid;
       const participant = msg.key.participant || remoteJid;
-      
+
       let text = "";
       if (msg.message.conversation) text = msg.message.conversation;
       else if (msg.message.extendedTextMessage?.text) text = msg.message.extendedTextMessage.text;
       else if (msg.message.imageMessage?.caption) text = msg.message.imageMessage.caption;
       else if (msg.message.videoMessage?.caption) text = msg.message.videoMessage.caption;
       else if (msg.message.documentMessage?.caption) text = msg.message.documentMessage.caption;
-      
+
       if (!text) return;
 
       const bot = bots.get(number);
@@ -279,13 +283,13 @@ async function startBot(number) {
         // Gestion des fonctionnalités
         if (bot.features.hasOwnProperty(cmdName)) {
           if (!["on", "off"].includes(args[0])) {
-            return sock.sendMessage(remoteJid, { 
-              text: `⚠️ Usage: ${prefix}${cmdName} on/off\nÉtat actuel: ${bot.features[cmdName] ? '✅ ON' : '❌ OFF'}` 
+            return sock.sendMessage(remoteJid, {
+              text: `⚠️ Usage: ${prefix}${cmdName} on/off\nÉtat actuel: ${bot.features[cmdName] ? '✅ ON' : '❌ OFF'}`
             });
           }
           bot.features[cmdName] = args[0] === "on";
-          return sock.sendMessage(remoteJid, { 
-            text: `✅ ${cmdName} = ${args[0].toUpperCase()}` 
+          return sock.sendMessage(remoteJid, {
+            text: `✅ ${cmdName} = ${args[0].toUpperCase()}`
           });
         }
 
@@ -302,8 +306,8 @@ async function startBot(number) {
             }, args);
           } catch (e) {
             console.error(chalk.red(`❌ Erreur commande ${cmdName}: ${e.message}`));
-            await sock.sendMessage(remoteJid, { 
-              text: "❌ Erreur lors de l'exécution de la commande" 
+            await sock.sendMessage(remoteJid, {
+              text: "❌ Erreur lors de l'exécution de la commande"
             });
           }
         }
@@ -315,19 +319,19 @@ async function startBot(number) {
           if (bot.features.autoread) {
             await sock.sendReadReceipt(remoteJid, participant, [msg.key.id]);
           }
-          
+
           if (bot.features.autoreact) {
-            const reactions = ["👍","❤️","😂","😮","😢","👏","🎉","🤔","🔥","😎","🙌","💯","✨","🥳","😡","😱","🤣","🙏","💔","🤷"];
+            const reactions = ["👍", "❤️", "😂", "😮", "😢", "👏", "🎉", "🤔", "🔥", "😎", "🙌", "💯", "✨", "🥳", "😡", "😱", "🤣", "🙏", "💔", "🤷"];
             const react = reactions[Math.floor(Math.random() * reactions.length)];
-            await sock.sendMessage(remoteJid, { 
-              react: { text: react, key: msg.key } 
+            await sock.sendMessage(remoteJid, {
+              react: { text: react, key: msg.key }
             });
           }
-          
+
           if (bot.features.autotyping && remoteJid.endsWith("@g.us")) {
             await sock.sendPresenceUpdate("composing", remoteJid);
           }
-          
+
           if (bot.features.autorecording && remoteJid.endsWith("@g.us")) {
             await sock.sendPresenceUpdate("recording", remoteJid);
           }
@@ -340,7 +344,7 @@ async function startBot(number) {
     // ======================= CONNECTION HANDLER =======================
     sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
       if (isShuttingDown) return;
-      
+
       if (connection === "close") {
         const code = lastDisconnect?.error?.output?.statusCode;
         if (code === 401 || code === 403) {
@@ -368,6 +372,7 @@ async function startBot(number) {
 
     // ======================= PAIRING CODE =======================
     if (!sock.authState?.creds?.registered) {
+      console.log(chalk.blue(`⏳ Demande de code de pairage pour ${number}...`));
       await delay(2000);
       const code = await sock.requestPairingCode(number);
       const formatted = code.match(/.{1,4}/g).join("-");
@@ -377,28 +382,59 @@ async function startBot(number) {
 
     return null;
   } catch (err) {
-    console.error(chalk.red(`❌ Erreur startBot ${number}: ${err.message}`));
+    console.error(chalk.red(`❌ Erreur startBot ${number}:`));
+    console.error(chalk.red(err.stack));
     throw err;
   }
 }
 
-// ======================= ROUTES =======================
+// ======================= ROUTES AVEC GESTION D'ERREURS AMÉLIORÉE =======================
 app.get("/pair-api/code", async (req, res) => {
   try {
+    console.log(chalk.blue(`📥 Requête de pairage reçue pour: ${req.query.number}`));
     const { number } = req.query;
+
     if (!number) {
+      console.log(chalk.yellow("⚠️ Numéro manquant dans la requête"));
       return res.status(400).json({ error: "number required" });
     }
 
-    if (bots.has(formatNumber(number))) {
-      return res.json({ status: "already_connected", message: "Bot déjà connecté" });
+    const formattedNumber = formatNumber(number);
+    console.log(chalk.gray(`📱 Numéro formaté: ${formattedNumber}`));
+
+    if (bots.has(formattedNumber)) {
+      console.log(chalk.yellow(`🤖 Bot déjà existant pour ${formattedNumber}`));
+      return res.json({ 
+        status: "already_connected", 
+        message: "Bot déjà connecté" 
+      });
     }
 
-    const code = await startBot(number);
-    res.json(code ? { code, status: "pairing" } : { status: "connected" });
+    console.log(chalk.blue(`🚀 Démarrage du bot pour ${formattedNumber}...`));
+    const code = await startBot(formattedNumber);
+    
+    if (code) {
+      console.log(chalk.green(`✅ Code généré avec succès pour ${formattedNumber}: ${code}`));
+      res.json({ 
+        code, 
+        status: "pairing",
+        message: "Code de pairage généré avec succès"
+      });
+    } else {
+      console.log(chalk.green(`✅ Bot déjà connecté pour ${formattedNumber}`));
+      res.json({ 
+        status: "connected",
+        message: "Bot déjà connecté"
+      });
+    }
   } catch (err) {
-    console.error(chalk.red(`❌ Route /pair-api/code: ${err.message}`));
-    res.status(500).json({ error: err.message });
+    console.error(chalk.red(`❌ Erreur dans /pair-api/code:`));
+    console.error(chalk.red(err.stack));
+    res.status(500).json({
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      details: "Vérifiez les logs du serveur pour plus d'informations"
+    });
   }
 });
 
@@ -411,7 +447,7 @@ app.post("/api/send-media", async (req, res) => {
 
     let activeSock = null;
     let activeNumber = null;
-    
+
     for (let [num, bot] of bots.entries()) {
       if (bot.sock?.user?.id) {
         activeSock = bot.sock;
@@ -419,52 +455,78 @@ app.post("/api/send-media", async (req, res) => {
         break;
       }
     }
-    
+
     if (!activeSock) {
-      return res.status(503).json({ 
-        error: "Aucun bot actif. Générez d'abord un code de pairage." 
+      return res.status(503).json({
+        error: "Aucun bot actif. Générez d'abord un code de pairage."
       });
     }
 
     const results = await sendMediaToNumbers(activeSock, numbers);
     const sentCount = results.filter(r => r.success).length;
-    
-    res.json({ 
-      success: true, 
-      sentTo: sentCount, 
+
+    res.json({
+      success: true,
+      sentTo: sentCount,
       total: numbers.length,
-      details: results 
+      details: results
     });
   } catch (err) {
     console.error(chalk.red(`❌ Route /api/send-media: ${err.message}`));
-    res.status(500).json({ error: err.message });
+    console.error(chalk.red(err.stack));
+    res.status(500).json({
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 });
 
 app.get("/api/bots-status", (req, res) => {
-  const status = {};
-  for (let [num, bot] of bots.entries()) {
-    status[num] = {
-      connected: !!bot.sock?.user?.id,
-      features: bot.features
-    };
+  try {
+    const status = {};
+    for (let [num, bot] of bots.entries()) {
+      status[num] = {
+        connected: !!bot.sock?.user?.id,
+        features: bot.features,
+        user: bot.sock?.user?.id || null
+      };
+    }
+    res.json({ 
+      bots: status, 
+      total: bots.size,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error(chalk.red(`❌ Route /api/bots-status: ${err.message}`));
+    res.status(500).json({ error: err.message });
   }
-  res.json({ bots: status, total: bots.size });
+});
+
+// ======================= ROUTE DE TEST =======================
+app.get("/api/test", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "Serveur fonctionnel",
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV || 'development'
+  });
 });
 
 // ======================= GESTION DES ERREURS =======================
 process.on("uncaughtException", (err) => {
-  console.error(chalk.red(`❌ Uncaught Exception: ${err.message}`));
+  console.error(chalk.red(`❌ Uncaught Exception:`));
+  console.error(chalk.red(err.stack));
 });
 
 process.on("unhandledRejection", (reason) => {
-  console.error(chalk.red(`❌ Unhandled Rejection: ${reason}`));
+  console.error(chalk.red(`❌ Unhandled Rejection:`));
+  console.error(chalk.red(reason));
 });
 
 process.on("SIGINT", async () => {
   console.log(chalk.yellow("🛑 Arrêt du serveur..."));
   isShuttingDown = true;
-  
+
   for (let [num, bot] of bots.entries()) {
     try {
       if (bot.sock?.ws) {
@@ -474,7 +536,7 @@ process.on("SIGINT", async () => {
       // Silencieux
     }
   }
-  
+
   server.close(() => {
     console.log(chalk.green("✅ Serveur arrêté proprement"));
     process.exit(0);
@@ -486,4 +548,6 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(chalk.green(`✅ Serveur prêt : http://localhost:${PORT}`));
   console.log(chalk.cyan(`🌐 URL publique: ${process.env.PUBLIC_URL || 'http://localhost:' + PORT}`));
   console.log(chalk.gray(`📊 Status: http://localhost:${PORT}/api/bots-status`));
+  console.log(chalk.gray(`🧪 Test: http://localhost:${PORT}/api/test`));
+  console.log(chalk.blue(`📱 Pour générer un code: http://localhost:${PORT}/pair-api/code?number=2376XXXXXXX`));
 });
