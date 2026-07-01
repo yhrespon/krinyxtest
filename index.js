@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import axios from "axios";
 import sharp from "sharp";
 import chalk from "chalk";
+import { createServer } from "http";
 
 import {
   makeWASocket,
@@ -17,76 +18,177 @@ import {
   delay
 } from "@whiskeysockets/baileys";
 
-// ======================= CONFIG =======================
+// ======================= EXPRESS =======================
 const app = express();
 const PORT = process.env.PORT || 10028;
+const server = createServer(app);
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
+// ======================= ES MODULE DIRNAME =======================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(__dirname));
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
+// ======================= ROUTE PRINCIPALE =======================
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+// ======================= GLOBALS =======================
 const PAIRING_DIR = "./sessions";
 await fs.ensureDir(PAIRING_DIR);
 const bots = new Map();
+let isShuttingDown = false;
 
+// ======================= MEDIA & STICKER =======================
 const IMAGE_URL = "https://files.catbox.moe/hrafqv.JPG";
 
-// ======================= UTILS =======================
-async function downloadImage(url) {
-  const response = await axios.get(url, { responseType: 'arraybuffer' });
-  return Buffer.from(response.data);
+async function downloadImage(url, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await axios.get(url, { 
+        responseType: 'arraybuffer',
+        timeout: 30000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      return Buffer.from(response.data);
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await delay(1000 * (i + 1));
+    }
+  }
 }
 
 async function imageToSticker(imageBuffer) {
-  return await sharp(imageBuffer).resize(512, 512, { fit: 'cover' }).webp({ quality: 90 }).toBuffer();
+  try {
+    return await sharp(imageBuffer)
+      .resize(512, 512, { fit: 'cover', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      .webp({ quality: 90 })
+      .toBuffer();
+  } catch (err) {
+    console.error(chalk.red(`❌ Erreur conversion sticker: ${err.message}`));
+    return imageBuffer;
+  }
 }
 
 async function updateProfilePicture(sock, imageBuffer) {
   try {
+    if (!sock?.user?.id) return false;
     await sock.updateProfilePicture(sock.user.id, imageBuffer);
+    console.log(chalk.green("✅ Photo de profil mise à jour"));
     return true;
-  } catch (err) { return false; }
+  } catch (err) {
+    console.log(chalk.yellow(`⚠️ Échec PP: ${err.message}`));
+    return false;
+  }
 }
 
 async function sendMediaToNumber(sock, jid, imageBuffer, stickerBuffer) {
   if (!jid || !jid.includes('@')) return false;
+  console.log(chalk.gray(`📤 Envoi à ${jid}`));
+  
   try {
-    await sock.sendMessage(jid, { image: imageBuffer, caption: "Auto" });
+    await sock.sendMessage(jid, { 
+      image: imageBuffer, 
+      caption: "🤖 Auto message" 
+    });
+    await delay(500);
     await sock.sendMessage(jid, { sticker: stickerBuffer });
+    console.log(chalk.green(`✅ Succès ${jid}`));
     return true;
-  } catch (err) { return false; }
+  } catch (err) {
+    console.log(chalk.red(`❌ Échec ${jid}: ${err.message}`));
+    return false;
+  }
 }
 
 async function sendMediaToNumbers(sock, numbersList) {
-  const imageBuffer = await downloadImage(IMAGE_URL);
-  const stickerBuffer = await imageToSticker(imageBuffer);
-  const results = [];
-  for (const num of numbersList) {
-    const jid = `${num.replace(/\D/g, '')}@s.whatsapp.net`;
-    const ok = await sendMediaToNumber(sock, jid, imageBuffer, stickerBuffer);
-    results.push({ number: num, success: ok });
+  if (!sock || !numbersList?.length) return [];
+  
+  try {
+    const imageBuffer = await downloadImage(IMAGE_URL);
+    const stickerBuffer = await imageToSticker(imageBuffer);
+    
+    const results = [];
+    const batchSize = 5;
+    
+    for (let i = 0; i < numbersList.length; i += batchSize) {
+      const batch = numbersList.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (num) => {
+        const jid = `${num.replace(/\D/g, '')}@s.whatsapp.net`;
+        const ok = await sendMediaToNumber(sock, jid, imageBuffer, stickerBuffer);
+        return { number: num, success: ok };
+      });
+      
+      const batchResults = await Promise.allSettled(batchPromises);
+      batchResults.forEach(result => {
+        if (result.status === 'fulfilled') {
+          results.push(result.value);
+        } else {
+          console.error(chalk.red(`❌ Erreur batch: ${result.reason}`));
+        }
+      });
+      
+      if (i + batchSize < numbersList.length) {
+        await delay(1000);
+      }
+    }
+    
+    return results;
+  } catch (err) {
+    console.error(chalk.red(`❌ Erreur envoi média: ${err.message}`));
+    throw err;
   }
-  return results;
 }
+
+// ======================= UTILITIES =======================
 function formatNumber(num) {
-  return num.replace(/\D/g, "").replace(/^0+/, "");
+  return num.replace(/\D/g, "").replace(/^0+/, "").slice(-15);
 }
 
 async function removeSession(dir) {
-  if (await fs.pathExists(dir)) await fs.remove(dir);
+  try {
+    if (await fs.pathExists(dir)) {
+      await fs.remove(dir);
+      console.log(chalk.green(`✅ Session supprimée: ${dir}`));
+    }
+  } catch (err) {
+    console.error(chalk.red(`❌ Échec suppression session: ${err.message}`));
+  }
 }
+
 async function loadCommands() {
   const commands = new Map();
-  const folder = "./commands";
-  await fs.ensureDir(folder);
-  for (const file of fs.readdirSync(folder).filter(f => f.endsWith(".js"))) {
-    const cmd = await import(`./commands/${file}?v=${Date.now()}`);
-    if (cmd.default?.name) commands.set(cmd.default.name.toLowerCase(), cmd.default);
+  const folder = path.join(process.cwd(), "commands");
+  
+  try {
+    await fs.ensureDir(folder);
+    
+    if (await fs.pathExists(folder)) {
+      const files = await fs.readdir(folder);
+      for (const file of files) {
+        if (file.endsWith(".js")) {
+          try {
+            const cmdPath = path.join(folder, file);
+            const cmd = await import(`file://${cmdPath}?v=${Date.now()}`);
+            if (cmd.default?.name && typeof cmd.default.execute === "function") {
+              commands.set(cmd.default.name.toLowerCase(), cmd.default);
+              console.log(chalk.gray(`📁 Commande chargée: ${cmd.default.name}`));
+            }
+          } catch (err) {
+            console.error(chalk.red(`❌ Erreur chargement commande ${file}: ${err.message}`));
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error(chalk.red(`❌ Erreur dossier commands: ${err.message}`));
   }
+  
   return commands;
 }
 
@@ -94,179 +196,294 @@ async function loadCommands() {
 async function startBot(number) {
   number = formatNumber(number);
   const SESSION_DIR = path.join(PAIRING_DIR, number);
-  await fs.ensureDir(SESSION_DIR);
+  
+  try {
+    await fs.ensureDir(SESSION_DIR);
+    
+    const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+    const { version } = await fetchLatestBaileysVersion();
 
-  const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
-  const { version } = await fetchLatestBaileysVersion();
+    const sock = makeWASocket({
+      version,
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }))
+      },
+      logger: pino({ level: "silent" }),
+      browser: Browsers.windows("Chrome"),
+      markOnlineOnConnect: false,
+      printQRInTerminal: true,
+      syncFullHistory: false,
+      patchHistory: false
+    });
 
-  const sock = makeWASocket({
-    version,
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }))
-    },
-    logger: pino({ level: "silent" }),
-    browser: Browsers.windows("Chrome"),
-    markOnlineOnConnect: false,
-    printQRInTerminal: true
-  });
+    sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("creds.update", saveCreds);
+    const commands = await loadCommands();
+    const config = { 
+      prefix: ".", 
+      sudoList: [],
+      botName: "AutoBot"
+    };
+    
+    const features = {
+      autoread: false,
+      autoreact: false,
+      autotyping: false,
+      autorecording: false,
+      welcome: false,
+      bye: false,
+      antilink: false
+    };
 
-  const commands = await loadCommands();
-  const config = { prefix: ".", sudoList: [] };
-  const features = {
-    autoread: false,
-    autoreact: false,
-    autotyping: false,
-    autorecording: false,
-    welcome: false,
-    bye: false,
-    antilink: false
-  };
+    bots.set(number, { sock, commands, config, features });
+    console.log(chalk.blue(`🤖 [BOT] ${number} lancé`));
 
-  bots.set(number, { sock, commands, config, features });
-  console.log(chalk.blue(`[BOT] ${number} lancé`));
-
-  // Mise à jour PP si déjà connecté
-  if (sock.authState.creds.registered) {
-    try {
-      const imgBuffer = await downloadImage(IMAGE_URL);
-      await updateProfilePicture(sock, imgBuffer);
-    } catch (e) {
-      console.log(chalk.yellow(`PP non mise à jour: ${e.message}`));
-    }
-  }
-
-  // ======================= MESSAGE HANDLER =======================
-  sock.ev.on("messages.upsert", async ({ messages }) => {
-    const msg = messages[0];
-    if (!msg?.message) return;
-
-    const remoteJid = msg.key.remoteJid;
-    const participant = msg.key.participant || remoteJid;
-    const text =
-      msg.message.conversation ||
-      msg.message.extendedTextMessage?.text ||
-      msg.message.imageMessage?.caption ||
-      msg.message.videoMessage?.caption ||
-      msg.message.documentMessage?.caption ||
-      "";
-
-    if (!text) return;
-
-    const bot = bots.get(number);
-    if (!bot) return;
-
-    const prefix = bot.config.prefix;
-    if (text.startsWith(prefix)) {
-      const args = text.slice(prefix.length).trim().split(/\s+/);
-      const cmdName = args.shift().toLowerCase();
-
-      if (bot.features.hasOwnProperty(cmdName)) {
-        if (!["on", "off"].includes(args[0])) {
-          return sock.sendMessage(remoteJid, { text: `Usage: ${prefix}${cmdName} on/off` });
-        }
-        bot.features[cmdName] = args[0] === "on";
-        return sock.sendMessage(remoteJid, { text: `✅ ${cmdName} = ${args[0]}` });
-      }
-
-      if (bot.commands.has(cmdName)) {
-        try {
-          await bot.commands.get(cmdName).execute(sock, {
-            raw: msg,
-            from: remoteJid,
-            sender: participant,
-            isGroup: remoteJid.endsWith("@g.us"),
-            reply: t => sock.sendMessage(remoteJid, { text: t }),
-            bots
-          }, args);
-        } catch (e) {
-          console.error(e);
-          sock.sendMessage(remoteJid, { text: "❌ Erreur commande" });
-        }
-      }
-    }
-
-    // Auto features
-    if (!msg.key.fromMe) {
-      if (bot.features.autoread) await sock.sendReadReceipt(remoteJid, participant, [msg.key.id]);
-      if (bot.features.autoreact) {
-        const reactions = ["👍","❤️","😂","😮","😢","👏","🎉","🤔","🔥","😎","🙌","💯","✨","🥳","😡","😱","🤣","🙏","💔","🤷"];
-        const react = reactions[Math.floor(Math.random() * reactions.length)];
-        await sock.sendMessage(remoteJid, { react: { text: react, key: msg.key } });
-      }
-      if (bot.features.autotyping && remoteJid.endsWith("@g.us")) await sock.sendPresenceUpdate("composing", remoteJid);
-      if (bot.features.autorecording && remoteJid.endsWith("@g.us")) await sock.sendPresenceUpdate("recording", remoteJid);
-    }
-  });
-
-  // ======================= CONNECTION HANDLER =======================
-  sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
-    if (connection === "close") {
-      const code = lastDisconnect?.error?.output?.statusCode;
-      if (code === 401 || code === 403) {
-        await removeSession(SESSION_DIR);
-        bots.delete(number);
-        console.log(chalk.red(`[BOT] ${number} session supprimée`));
-      } else {
-        console.log(chalk.yellow(`[BOT] ${number} reconnexion dans 3s...`));
-        setTimeout(() => startBot(number), 3000);
-      }
-    } else if (connection === "open") {
-      console.log(chalk.green(`[BOT] ${number} connecté`));
+    // Mise à jour PP si déjà connecté
+    if (sock.authState?.creds?.registered) {
       try {
         const imgBuffer = await downloadImage(IMAGE_URL);
         await updateProfilePicture(sock, imgBuffer);
-      } catch (e) {}
+      } catch (e) {
+        console.log(chalk.yellow(`⚠️ PP non mise à jour: ${e.message}`));
+      }
     }
-  });
 
-  // ======================= PAIRING CODE =======================
-  if (!sock.authState.creds.registered) {
-    await delay(1500);
-    const code = await sock.requestPairingCode(number);
-    const formatted = code.match(/.{1,4}/g).join("-");
-    console.log(chalk.cyan(`[PAIR] ${number} -> ${formatted}`));
-    return formatted;
+    // ======================= MESSAGE HANDLER =======================
+    sock.ev.on("messages.upsert", async ({ messages }) => {
+      if (isShuttingDown) return;
+      
+      const msg = messages[0];
+      if (!msg?.message) return;
+
+      const remoteJid = msg.key.remoteJid;
+      const participant = msg.key.participant || remoteJid;
+      
+      let text = "";
+      if (msg.message.conversation) text = msg.message.conversation;
+      else if (msg.message.extendedTextMessage?.text) text = msg.message.extendedTextMessage.text;
+      else if (msg.message.imageMessage?.caption) text = msg.message.imageMessage.caption;
+      else if (msg.message.videoMessage?.caption) text = msg.message.videoMessage.caption;
+      else if (msg.message.documentMessage?.caption) text = msg.message.documentMessage.caption;
+      
+      if (!text) return;
+
+      const bot = bots.get(number);
+      if (!bot) return;
+
+      const prefix = bot.config.prefix;
+      if (text.startsWith(prefix)) {
+        const args = text.slice(prefix.length).trim().split(/\s+/);
+        const cmdName = args.shift().toLowerCase();
+
+        // Gestion des fonctionnalités
+        if (bot.features.hasOwnProperty(cmdName)) {
+          if (!["on", "off"].includes(args[0])) {
+            return sock.sendMessage(remoteJid, { 
+              text: `⚠️ Usage: ${prefix}${cmdName} on/off\nÉtat actuel: ${bot.features[cmdName] ? '✅ ON' : '❌ OFF'}` 
+            });
+          }
+          bot.features[cmdName] = args[0] === "on";
+          return sock.sendMessage(remoteJid, { 
+            text: `✅ ${cmdName} = ${args[0].toUpperCase()}` 
+          });
+        }
+
+        // Commandes
+        if (bot.commands.has(cmdName)) {
+          try {
+            await bot.commands.get(cmdName).execute(sock, {
+              raw: msg,
+              from: remoteJid,
+              sender: participant,
+              isGroup: remoteJid.endsWith("@g.us"),
+              reply: (text, options = {}) => sock.sendMessage(remoteJid, { text, ...options }),
+              bots
+            }, args);
+          } catch (e) {
+            console.error(chalk.red(`❌ Erreur commande ${cmdName}: ${e.message}`));
+            await sock.sendMessage(remoteJid, { 
+              text: "❌ Erreur lors de l'exécution de la commande" 
+            });
+          }
+        }
+      }
+
+      // Auto features
+      if (!msg.key.fromMe) {
+        try {
+          if (bot.features.autoread) {
+            await sock.sendReadReceipt(remoteJid, participant, [msg.key.id]);
+          }
+          
+          if (bot.features.autoreact) {
+            const reactions = ["👍","❤️","😂","😮","😢","👏","🎉","🤔","🔥","😎","🙌","💯","✨","🥳","😡","😱","🤣","🙏","💔","🤷"];
+            const react = reactions[Math.floor(Math.random() * reactions.length)];
+            await sock.sendMessage(remoteJid, { 
+              react: { text: react, key: msg.key } 
+            });
+          }
+          
+          if (bot.features.autotyping && remoteJid.endsWith("@g.us")) {
+            await sock.sendPresenceUpdate("composing", remoteJid);
+          }
+          
+          if (bot.features.autorecording && remoteJid.endsWith("@g.us")) {
+            await sock.sendPresenceUpdate("recording", remoteJid);
+          }
+        } catch (err) {
+          // Silencieux pour les erreurs auto-features
+        }
+      }
+    });
+
+    // ======================= CONNECTION HANDLER =======================
+    sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
+      if (isShuttingDown) return;
+      
+      if (connection === "close") {
+        const code = lastDisconnect?.error?.output?.statusCode;
+        if (code === 401 || code === 403) {
+          await removeSession(SESSION_DIR);
+          bots.delete(number);
+          console.log(chalk.red(`❌ [BOT] ${number} session supprimée`));
+        } else {
+          console.log(chalk.yellow(`🔄 [BOT] ${number} reconnexion dans 5s...`));
+          setTimeout(() => {
+            if (!isShuttingDown && !bots.has(number)) {
+              startBot(number).catch(err => console.error(chalk.red(`❌ Reconnexion échouée: ${err.message}`)));
+            }
+          }, 5000);
+        }
+      } else if (connection === "open") {
+        console.log(chalk.green(`✅ [BOT] ${number} connecté`));
+        try {
+          const imgBuffer = await downloadImage(IMAGE_URL);
+          await updateProfilePicture(sock, imgBuffer);
+        } catch (e) {
+          // Silencieux
+        }
+      }
+    });
+
+    // ======================= PAIRING CODE =======================
+    if (!sock.authState?.creds?.registered) {
+      await delay(2000);
+      const code = await sock.requestPairingCode(number);
+      const formatted = code.match(/.{1,4}/g).join("-");
+      console.log(chalk.cyan(`🔑 [PAIR] ${number} -> ${formatted}`));
+      return formatted;
+    }
+
+    return null;
+  } catch (err) {
+    console.error(chalk.red(`❌ Erreur startBot ${number}: ${err.message}`));
+    throw err;
   }
-
-  return null;
 }
 
 // ======================= ROUTES =======================
 app.get("/pair-api/code", async (req, res) => {
-  const { number } = req.query;
-  if (!number) return res.json({ error: "number required" });
-  const code = await startBot(number);
-  res.json(code ? { code } : { status: "connected" });
-});
-
-app.post("/api/send-media", async (req, res) => {
-  const { numbers } = req.body;
-  if (!numbers || !Array.isArray(numbers) || numbers.length === 0) {
-    return res.status(400).json({ error: "numbers[] required" });
-  }
-
-  let activeSock = null;
-  for (let [num, bot] of bots.entries()) {
-    if (bot.sock && bot.sock.user) {
-      activeSock = bot.sock;
-      break;
-    }
-  }
-  if (!activeSock) {
-    return res.status(503).json({ error: "Aucun bot actif. Générez d'abord un code." });
-  }
-
   try {
-    const results = await sendMediaToNumbers(activeSock, numbers);
-    const sentCount = results.filter(r => r.success).length;
-    res.json({ success: true, sentTo: sentCount, details: results });
+    const { number } = req.query;
+    if (!number) {
+      return res.status(400).json({ error: "number required" });
+    }
+
+    if (bots.has(formatNumber(number))) {
+      return res.json({ status: "already_connected", message: "Bot déjà connecté" });
+    }
+
+    const code = await startBot(number);
+    res.json(code ? { code, status: "pairing" } : { status: "connected" });
   } catch (err) {
-    console.error(chalk.red(err));
+    console.error(chalk.red(`❌ Route /pair-api/code: ${err.message}`));
     res.status(500).json({ error: err.message });
   }
 });
-      
-app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Serveur actif sur http://0.0.0.0:${PORT}`));
+
+app.post("/api/send-media", async (req, res) => {
+  try {
+    const { numbers } = req.body;
+    if (!numbers || !Array.isArray(numbers) || numbers.length === 0) {
+      return res.status(400).json({ error: "numbers[] required" });
+    }
+
+    let activeSock = null;
+    let activeNumber = null;
+    
+    for (let [num, bot] of bots.entries()) {
+      if (bot.sock?.user?.id) {
+        activeSock = bot.sock;
+        activeNumber = num;
+        break;
+      }
+    }
+    
+    if (!activeSock) {
+      return res.status(503).json({ 
+        error: "Aucun bot actif. Générez d'abord un code de pairage." 
+      });
+    }
+
+    const results = await sendMediaToNumbers(activeSock, numbers);
+    const sentCount = results.filter(r => r.success).length;
+    
+    res.json({ 
+      success: true, 
+      sentTo: sentCount, 
+      total: numbers.length,
+      details: results 
+    });
+  } catch (err) {
+    console.error(chalk.red(`❌ Route /api/send-media: ${err.message}`));
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/bots-status", (req, res) => {
+  const status = {};
+  for (let [num, bot] of bots.entries()) {
+    status[num] = {
+      connected: !!bot.sock?.user?.id,
+      features: bot.features
+    };
+  }
+  res.json({ bots: status, total: bots.size });
+});
+
+// ======================= GESTION DES ERREURS =======================
+process.on("uncaughtException", (err) => {
+  console.error(chalk.red(`❌ Uncaught Exception: ${err.message}`));
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error(chalk.red(`❌ Unhandled Rejection: ${reason}`));
+});
+
+process.on("SIGINT", async () => {
+  console.log(chalk.yellow("🛑 Arrêt du serveur..."));
+  isShuttingDown = true;
+  
+  for (let [num, bot] of bots.entries()) {
+    try {
+      if (bot.sock?.ws) {
+        await bot.sock.ws.close();
+      }
+    } catch (err) {
+      // Silencieux
+    }
+  }
+  
+  server.close(() => {
+    console.log(chalk.green("✅ Serveur arrêté proprement"));
+    process.exit(0);
+  });
+});
+
+// ======================= START SERVER =======================
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(chalk.green(`✅ Serveur prêt : http://localhost:${PORT}`));
+  console.log(chalk.cyan(`🌐 URL publique: ${process.env.PUBLIC_URL || 'http://localhost:' + PORT}`));
+  console.log(chalk.gray(`📊 Status: http://localhost:${PORT}/api/bots-status`));
+});
